@@ -124,13 +124,18 @@ func TestHelloCompression(t *testing.T) {
 
 	req := fasthttp.AcquireRequest()
 	req.SetURI(uri)
-	req.Header.Set(fasthttp.HeaderAcceptEncoding, "gzip, br")
+	req.Header.Set(fasthttp.HeaderAcceptEncoding, "unknown, br")
 	resp, err := doRequest(req)
 
 	if err != nil {
 		t.Fatalf("request failed: %v", err.Error())
 	}
 	verifyHelloTypeAndCode(resp, t)
+	gotEncoding := string(resp.Header.ContentEncoding())
+	wantEncoding := "br"
+	if gotEncoding != wantEncoding {
+		t.Fatalf("invalid encoding. Want: %v, got: %v", wantEncoding, gotEncoding)
+	}
 	uncompressed, err := resp.BodyUnbrotli()
 	if err != nil {
 		t.Fatalf("failed to uncompress: %v", err.Error())
@@ -142,12 +147,12 @@ func TestHelloCompression(t *testing.T) {
 	}
 }
 
-var expectedNotFoundPaths = []string{
-	"/", "/thing", "/static", "/static/", "/static/no-file-here",
+var expectedInvalidPaths = []string{
+	"/", "/thing", "/static", "/static/", "/static/no-file-here", "/static/../main.go",
 }
 
-func TestNotFound(t *testing.T) {
-	for _, p := range expectedNotFoundPaths {
+func TestInvalidPaths(t *testing.T) {
+	for _, p := range expectedInvalidPaths {
 		uri := getBaseUri()
 		uri.SetPath(p)
 
@@ -161,9 +166,8 @@ func TestNotFound(t *testing.T) {
 			t.Fatalf("request failed for url %v: %v", uri.String(), err.Error())
 		}
 		gotCode := resp.StatusCode()
-		wantCode := http.StatusNotFound
-		if gotCode != wantCode {
-			t.Errorf("invalid status code for url %v. Want: %v, got: %v", uri.String(), wantCode, gotCode)
+		if gotCode < 400 || gotCode > 499 {
+			t.Errorf("invalid status code for url %v. Want 4xx, got: %v", uri.String(), gotCode)
 		}
 	}
 }
@@ -197,7 +201,7 @@ func TestStaticBasicCompressed(t *testing.T) {
 
 	req := fasthttp.AcquireRequest()
 	req.SetURI(uri)
-	req.Header.Set(fasthttp.HeaderAcceptEncoding, "gzip, br")
+	req.Header.Set(fasthttp.HeaderAcceptEncoding, "unknown, br")
 	resp, err := doRequest(req)
 
 	if err != nil {
@@ -224,7 +228,7 @@ func TestStaticImage(t *testing.T) {
 
 	req := fasthttp.AcquireRequest()
 	req.SetURI(uri)
-	req.Header.Set(fasthttp.HeaderAcceptEncoding, "gzip, br")
+	req.Header.Set(fasthttp.HeaderAcceptEncoding, "unknown, br")
 	resp, err := doRequest(req)
 
 	if err != nil {
