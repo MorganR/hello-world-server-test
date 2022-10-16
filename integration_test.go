@@ -89,7 +89,7 @@ func TestHelloNameMaxLength(t *testing.T) {
 	uri := getBaseUri()
 	uri.SetPath("/hello")
 	args := uri.QueryArgs()
-	maxLenName := strings.Repeat("a", 100)
+	maxLenName := strings.Repeat("a", 500)
 	args.Set("name", maxLenName)
 
 	req := fasthttp.AcquireRequest()
@@ -121,6 +121,10 @@ func TestHelloNameMaxLength(t *testing.T) {
 func TestHelloCompression(t *testing.T) {
 	uri := getBaseUri()
 	uri.SetPath("/hello")
+	args := uri.QueryArgs()
+	// Use max length since some frameworks don't compress small responses.
+	maxLenName := strings.Repeat("a", 500)
+	args.Set("name", maxLenName)
 
 	req := fasthttp.AcquireRequest()
 	req.SetURI(uri)
@@ -141,7 +145,7 @@ func TestHelloCompression(t *testing.T) {
 		t.Fatalf("failed to uncompress: %v", err.Error())
 	}
 	gotBody := string(uncompressed)
-	wantBody := "Hello, world!"
+	wantBody := "Hello, " + maxLenName + "!"
 	if gotBody != wantBody {
 		t.Errorf("invalid body. Want: %v, got: %v", wantBody, gotBody)
 	}
