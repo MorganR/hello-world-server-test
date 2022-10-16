@@ -170,22 +170,6 @@ func TestNotFound(t *testing.T) {
 	}
 }
 
-const expectedBasicHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta name="robots" content="noindex">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="referrer" content="same-origin">
-
-  <title>Sample</title>
-  </head>
-  <body>
-    <h1>Sample</h1>
-    <p>This is a sample page.</p>
-  </body>
-</html>
-`
-
 func TestStaticBasic(t *testing.T) {
 	uri := getBaseUri()
 	uri.SetPath("/static/basic.html")
@@ -198,9 +182,13 @@ func TestStaticBasic(t *testing.T) {
 		t.Fatalf("request failed: %v", err.Error())
 	}
 	verifyTypeAndCode(resp, "text/html; charset=utf-8", http.StatusOK, t)
-	gotBody := string(resp.Body())
-	if gotBody != expectedBasicHtml {
-		diffs := cmp.Diff(expectedBasicHtml, gotBody)
+	gotBody := resp.Body()
+	expectedBody, err := os.ReadFile("./data/basic.html")
+	if err != nil {
+		t.Fatalf("failed to load basic html: %v", err.Error())
+	}
+	if !cmp.Equal(gotBody, expectedBody) {
+		diffs := cmp.Diff(expectedBody, gotBody)
 		t.Errorf("incorrect basic html response. Diff: %v", diffs)
 	}
 }
@@ -218,13 +206,39 @@ func TestStaticBasicCompressed(t *testing.T) {
 		t.Fatalf("request failed: %v", err.Error())
 	}
 	verifyTypeAndCode(resp, "text/html; charset=utf-8", http.StatusOK, t)
-	uncompressed, err := resp.BodyUnbrotli()
+	gotBody, err := resp.BodyUnbrotli()
 	if err != nil {
 		t.Fatalf("failed to uncompress: %v", err.Error())
 	}
-	gotBody := string(uncompressed)
-	if gotBody != expectedBasicHtml {
-		diffs := cmp.Diff(expectedBasicHtml, gotBody)
+	expectedBody, err := os.ReadFile("./data/basic.html")
+	if err != nil {
+		t.Fatalf("failed to load basic html: %v", err.Error())
+	}
+	if !cmp.Equal(gotBody, expectedBody) {
+		diffs := cmp.Diff(expectedBody, gotBody)
 		t.Errorf("incorrect basic html response. Diff: %v", diffs)
+	}
+}
+
+func TestStaticImage(t *testing.T) {
+	uri := getBaseUri()
+	uri.SetPath("/static/scout.webp")
+
+	req := fasthttp.AcquireRequest()
+	req.SetURI(uri)
+	req.Header.Set(fasthttp.HeaderAcceptEncoding, "gzip, br")
+	resp, err := doRequest(req)
+
+	if err != nil {
+		t.Fatalf("request failed: %v", err.Error())
+	}
+	verifyTypeAndCode(resp, "image/webp", http.StatusOK, t)
+	gotBody := resp.Body()
+	expectedBody, err := os.ReadFile("./data/scout.webp")
+	if err != nil {
+		t.Fatalf("failed to load image: %v", err.Error())
+	}
+	if !cmp.Equal(gotBody, expectedBody) {
+		t.Errorf("incorrect image data. Want len: %v, got len: %v", len(expectedBody), len(gotBody))
 	}
 }
