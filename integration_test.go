@@ -145,7 +145,7 @@ func verifyTypeAndCode(got *fasthttp.Response, wantType string, wantCode int, t 
 }
 
 var expectedNotFoundPaths = []string{
-	"/", "/thing", "/static/", "/static/no-file-here",
+	"/", "/thing", "/static", "/static/", "/static/no-file-here",
 }
 
 func TestNotFound(t *testing.T) {
@@ -155,7 +155,9 @@ func TestNotFound(t *testing.T) {
 
 		req := fasthttp.AcquireRequest()
 		req.SetURI(uri)
-		resp, err := doRequest(req)
+		resp := fasthttp.AcquireResponse()
+		// Allow redirects (seems to happen with quirks of different routing implementations).
+		err := client.DoRedirects(req, resp, 2)
 
 		if err != nil {
 			t.Fatalf("request failed for url %v: %v", uri.String(), err.Error())
