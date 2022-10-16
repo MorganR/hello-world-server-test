@@ -1,7 +1,9 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -11,8 +13,27 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+var (
+	baseUrl = flag.String("base_url", "", "The base URL (scheme + host + port), to run integration tests against. Example: http://localhost:80")
+	baseUri *fasthttp.URI
+	client  *fasthttp.Client
+)
+
 func TestMain(m *testing.M) {
-	setUp()
+	flag.Parse()
+
+	if *baseUrl == "" {
+		log.Fatal("Must provide a valid base_url")
+	}
+	baseUri = fasthttp.AcquireURI()
+	err := baseUri.Parse(nil, []byte(*baseUrl))
+	if err != nil {
+		log.Fatalf("Could not parse base URL (%v): %v", *baseUrl, err.Error())
+	}
+
+	client = &fasthttp.Client{
+		Name: "integration-tester",
+	}
 
 	os.Exit(m.Run())
 }
@@ -121,29 +142,6 @@ func TestHelloCompression(t *testing.T) {
 	}
 }
 
-func verifyUncompressedHelloResponse(got *fasthttp.Response, wantBody string, t *testing.T) {
-	verifyHelloTypeAndCode(got, t)
-	gotBody := string(got.Body())
-	if gotBody != wantBody {
-		t.Errorf("invalid body. Want: %v, got: %v", wantBody, gotBody)
-	}
-}
-
-func verifyHelloTypeAndCode(got *fasthttp.Response, t *testing.T) {
-	verifyTypeAndCode(got, "text/plain; charset=utf-8", http.StatusOK, t)
-}
-
-func verifyTypeAndCode(got *fasthttp.Response, wantType string, wantCode int, t *testing.T) {
-	gotType := string(got.Header.ContentType())
-	if gotType != wantType {
-		t.Errorf("invalid content type. Want: %v, got %v", wantType, gotType)
-	}
-	gotCode := got.StatusCode()
-	if gotCode != wantCode {
-		t.Errorf("invalid status code. Want: %v, got: %v", wantCode, gotCode)
-	}
-}
-
 var expectedNotFoundPaths = []string{
 	"/", "/thing", "/static", "/static/", "/static/no-file-here",
 }
@@ -240,5 +238,40 @@ func TestStaticImage(t *testing.T) {
 	}
 	if !cmp.Equal(gotBody, expectedBody) {
 		t.Errorf("incorrect image data. Want len: %v, got len: %v", len(expectedBody), len(gotBody))
+	}
+}
+
+func getBaseUri() *fasthttp.URI {
+	uri := fasthttp.AcquireURI()
+	baseUri.CopyTo(uri)
+	return uri
+}
+
+func doRequest(r *fasthttp.Request) (*fasthttp.Response, error) {
+	resp := fasthttp.AcquireResponse()
+	err := client.Do(r, resp)
+	return resp, err
+}
+
+func verifyUncompressedHelloResponse(got *fasthttp.Response, wantBody string, t *testing.T) {
+	verifyHelloTypeAndCode(got, t)
+	gotBody := string(got.Body())
+	if gotBody != wantBody {
+		t.Errorf("invalid body. Want: %v, got: %v", wantBody, gotBody)
+	}
+}
+
+func verifyHelloTypeAndCode(got *fasthttp.Response, t *testing.T) {
+	verifyTypeAndCode(got, "text/plain; charset=utf-8", http.StatusOK, t)
+}
+
+func verifyTypeAndCode(got *fasthttp.Response, wantType string, wantCode int, t *testing.T) {
+	gotType := string(got.Header.ContentType())
+	if gotType != wantType {
+		t.Errorf("invalid content type. Want: %v, got %v", wantType, gotType)
+	}
+	gotCode := got.StatusCode()
+	if gotCode != wantCode {
+		t.Errorf("invalid status code. Want: %v, got: %v", wantCode, gotCode)
 	}
 }
