@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/valyala/fasthttp"
 )
 
@@ -129,14 +130,99 @@ func verifyUncompressedHelloResponse(got *fasthttp.Response, wantBody string, t 
 }
 
 func verifyHelloTypeAndCode(got *fasthttp.Response, t *testing.T) {
+	verifyTypeAndCode(got, "text/plain; charset=utf-8", http.StatusOK, t)
+}
+
+func verifyTypeAndCode(got *fasthttp.Response, wantType string, wantCode int, t *testing.T) {
 	gotType := string(got.Header.ContentType())
-	wantType := "text/plain"
 	if gotType != wantType {
 		t.Errorf("invalid content type. Want: %v, got %v", wantType, gotType)
 	}
 	gotCode := got.StatusCode()
-	wantCode := http.StatusOK
 	if gotCode != wantCode {
 		t.Errorf("invalid status code. Want: %v, got: %v", wantCode, gotCode)
+	}
+}
+
+var expectedNotFoundPaths = []string{
+	"/", "/thing", "/static/", "/static/no-file-here",
+}
+
+func TestNotFound(t *testing.T) {
+	for _, p := range expectedNotFoundPaths {
+		uri := getBaseUri()
+		uri.SetPath(p)
+
+		req := fasthttp.AcquireRequest()
+		req.SetURI(uri)
+		resp, err := doRequest(req)
+
+		if err != nil {
+			t.Fatalf("request failed for url %v: %v", uri.String(), err.Error())
+		}
+		gotCode := resp.StatusCode()
+		wantCode := http.StatusNotFound
+		if gotCode != wantCode {
+			t.Errorf("invalid status code for url %v. Want: %v, got: %v", uri.String(), wantCode, gotCode)
+		}
+	}
+}
+
+const expectedBasicHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta name="robots" content="noindex">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="same-origin">
+
+  <title>Sample</title>
+  </head>
+  <body>
+    <h1>Sample</h1>
+    <p>This is a sample page.</p>
+  </body>
+</html>
+`
+
+func TestStaticBasic(t *testing.T) {
+	uri := getBaseUri()
+	uri.SetPath("/static/basic.html")
+
+	req := fasthttp.AcquireRequest()
+	req.SetURI(uri)
+	resp, err := doRequest(req)
+
+	if err != nil {
+		t.Fatalf("request failed: %v", err.Error())
+	}
+	verifyTypeAndCode(resp, "text/html; charset=utf-8", http.StatusOK, t)
+	gotBody := string(resp.Body())
+	if gotBody != expectedBasicHtml {
+		diffs := cmp.Diff(expectedBasicHtml, gotBody)
+		t.Errorf("incorrect basic html response. Diff: %v", diffs)
+	}
+}
+
+func TestStaticBasicCompressed(t *testing.T) {
+	uri := getBaseUri()
+	uri.SetPath("/static/basic.html")
+
+	req := fasthttp.AcquireRequest()
+	req.SetURI(uri)
+	req.Header.Set(fasthttp.HeaderAcceptEncoding, "gzip, br")
+	resp, err := doRequest(req)
+
+	if err != nil {
+		t.Fatalf("request failed: %v", err.Error())
+	}
+	verifyTypeAndCode(resp, "text/html; charset=utf-8", http.StatusOK, t)
+	uncompressed, err := resp.BodyUnbrotli()
+	if err != nil {
+		t.Fatalf("failed to uncompress: %v", err.Error())
+	}
+	gotBody := string(uncompressed)
+	if gotBody != expectedBasicHtml {
+		diffs := cmp.Diff(expectedBasicHtml, gotBody)
+		t.Errorf("incorrect basic html response. Diff: %v", diffs)
 	}
 }

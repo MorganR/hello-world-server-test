@@ -16,6 +16,9 @@ var (
 func setUp() {
 	flag.Parse()
 
+	if *baseUrl == "" {
+		log.Fatal("Must provide a valid base_url")
+	}
 	baseUri = fasthttp.AcquireURI()
 	err := baseUri.Parse(nil, []byte(*baseUrl))
 	if err != nil {
