@@ -187,7 +187,7 @@ func TestStaticBasic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err.Error())
 	}
-	verifyTypeAndCode(resp, "text/html; charset=utf-8", http.StatusOK, t)
+	verifyTypeAndCode(resp, "text/html", http.StatusOK, t)
 	gotBody := resp.Body()
 	expectedBody, err := os.ReadFile("./data/basic.html")
 	if err != nil {
@@ -211,7 +211,7 @@ func TestStaticBasicCompressed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err.Error())
 	}
-	verifyTypeAndCode(resp, "text/html; charset=utf-8", http.StatusOK, t)
+	verifyTypeAndCode(resp, "text/html", http.StatusOK, t)
 	gotBody, err := resp.BodyUnbrotli()
 	if err != nil {
 		t.Fatalf("failed to uncompress: %v", err.Error())
@@ -275,8 +275,9 @@ func verifyHelloTypeAndCode(got *fasthttp.Response, t *testing.T) {
 
 func verifyTypeAndCode(got *fasthttp.Response, wantType string, wantCode int, t *testing.T) {
 	gotType := string(got.Header.ContentType())
-	if gotType != wantType {
-		t.Errorf("invalid content type. Want: %v, got %v", wantType, gotType)
+
+	if !strings.HasPrefix(gotType, wantType) {
+		t.Errorf("invalid content type. Want prefix: %v, got: %v", wantType, gotType)
 	}
 	gotCode := got.StatusCode()
 	if gotCode != wantCode {
