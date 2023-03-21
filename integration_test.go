@@ -132,7 +132,7 @@ func TestHelloCompression(t *testing.T) {
 
 	req := fasthttp.AcquireRequest()
 	req.SetURI(uri)
-	req.Header.Set(fasthttp.HeaderAcceptEncoding, "unknown, br")
+	req.Header.Set(fasthttp.HeaderAcceptEncoding, "gzip, br")
 	resp, err := doRequest(req)
 
 	if err != nil {
@@ -193,7 +193,7 @@ func TestLinesLongResponseIsCompressed(t *testing.T) {
 
 	req := fasthttp.AcquireRequest()
 	req.SetURI(uri)
-	req.Header.Set(fasthttp.HeaderAcceptEncoding, "unknown, br")
+	req.Header.Set(fasthttp.HeaderAcceptEncoding, "gzip, br")
 	resp, err := doRequest(req)
 
 	if err != nil {
@@ -386,11 +386,11 @@ func verifyUncompressedTextResponse(got *fasthttp.Response, wantBody, wantType s
 func verifyCompressedTextResponse(got *fasthttp.Response, wantBody, wantType string, t *testing.T) {
 	verifyTextTypeAndCode(got, wantType, t)
 	gotEncoding := string(got.Header.ContentEncoding())
-	wantEncoding := "br"
+	wantEncoding := "gzip"
 	if gotEncoding != wantEncoding {
 		t.Fatalf("invalid encoding; want: %v, got: %v", wantEncoding, gotEncoding)
 	}
-	uncompressed, err := got.BodyUnbrotli()
+	uncompressed, err := got.BodyGunzip()
 	if err != nil {
 		t.Fatalf("failed to uncompress: %v", err.Error())
 	}
