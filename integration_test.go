@@ -201,7 +201,7 @@ func TestLinesLongResponseIsCompressed(t *testing.T) {
 	wantBody := strings.Builder{}
 	wantBody.WriteString("<ol>\n")
 	for i := 1; i <= n; i++ {
-		wantBody.WriteString(fmt.Sprintf("<li>Item number: %v</li>\n", i))
+		wantBody.WriteString(fmt.Sprintf("  <li>Item number: %v</li>\n", i))
 	}
 	wantBody.WriteString("</ol>")
 	verifyCompressedTextResponse(resp, wantBody.String(), t)
