@@ -53,7 +53,7 @@ func TestHello(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err.Error())
 	}
-	verifyUncompressedTextResponse(resp, "Hello, world!", t)
+	verifyUncompressedTextResponse(resp, "Hello, world!", "text/plain", t)
 }
 
 func TestHelloWithName(t *testing.T) {
@@ -69,7 +69,7 @@ func TestHelloWithName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err.Error())
 	}
-	verifyUncompressedTextResponse(resp, "Hello, some COOL guy!", t)
+	verifyUncompressedTextResponse(resp, "Hello, some COOL guy!", "text/plain", t)
 }
 
 func TestHelloWithEmptyName(t *testing.T) {
@@ -85,7 +85,7 @@ func TestHelloWithEmptyName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err.Error())
 	}
-	verifyUncompressedTextResponse(resp, "Hello, world!", t)
+	verifyUncompressedTextResponse(resp, "Hello, world!", "text/plain", t)
 }
 
 func TestHelloNameMaxLength(t *testing.T) {
@@ -103,7 +103,7 @@ func TestHelloNameMaxLength(t *testing.T) {
 	if err != nil {
 		t.Fatalf("max len name request failed: %v", err.Error())
 	}
-	verifyUncompressedTextResponse(resp, fmt.Sprintf("Hello, %v!", maxLenName), t)
+	verifyUncompressedTextResponse(resp, fmt.Sprintf("Hello, %v!", maxLenName), "text/plain", t)
 
 	// Too long should fail.
 	args.Set("name", maxLenName+"a")
@@ -139,7 +139,7 @@ func TestHelloCompression(t *testing.T) {
 		t.Fatalf("request failed: %v", err.Error())
 	}
 	wantBody := "Hello, " + maxLenName + "!"
-	verifyCompressedTextResponse(resp, wantBody, t)
+	verifyCompressedTextResponse(resp, wantBody, "text/plain", t)
 }
 
 func TestAsyncHello(t *testing.T) {
@@ -159,7 +159,7 @@ func TestAsyncHello(t *testing.T) {
 	if req_time < EXPECTED_SLOW_TIME {
 		t.Errorf("request took %v, expected at least %v", req_time, EXPECTED_SLOW_TIME)
 	}
-	verifyUncompressedTextResponse(resp, "Hello, world!", t)
+	verifyUncompressedTextResponse(resp, "Hello, world!", "text/plain", t)
 }
 
 func TestLines(t *testing.T) {
@@ -181,6 +181,7 @@ func TestLines(t *testing.T) {
   <li>Item number: 3</li>
   <li>Item number: 4</li>
 </ol>`,
+		"text/html",
 		t)
 }
 
@@ -204,7 +205,7 @@ func TestLinesLongResponseIsCompressed(t *testing.T) {
 		wantBody.WriteString(fmt.Sprintf("  <li>Item number: %v</li>\n", i))
 	}
 	wantBody.WriteString("</ol>")
-	verifyCompressedTextResponse(resp, wantBody.String(), t)
+	verifyCompressedTextResponse(resp, wantBody.String(), "text/html", t)
 }
 
 var expectedInvalidPaths = []string{
@@ -324,7 +325,7 @@ func TestMathPowerReciprocalsAlt(t *testing.T) {
 		if err != nil {
 			t.Fatalf("request failed: %v", err.Error())
 		}
-		verifyTextTypeAndCode(resp, t)
+		verifyTextTypeAndCode(resp, "text/plain", t)
 		gotBody := string(resp.Body())
 		gotNum, err := strconv.ParseFloat(gotBody, 64)
 		if err != nil {
@@ -350,7 +351,7 @@ func TestMathPowerReciprocalsAltIsNotCompressed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("request failed: %v", err.Error())
 	}
-	verifyTextTypeAndCode(resp, t)
+	verifyTextTypeAndCode(resp, "text/plain", t)
 	gotBody := string(resp.Body())
 	gotNum, err := strconv.ParseFloat(gotBody, 64)
 	if err != nil {
@@ -374,16 +375,16 @@ func doRequest(r *fasthttp.Request) (*fasthttp.Response, error) {
 	return resp, err
 }
 
-func verifyUncompressedTextResponse(got *fasthttp.Response, wantBody string, t *testing.T) {
-	verifyTextTypeAndCode(got, t)
+func verifyUncompressedTextResponse(got *fasthttp.Response, wantBody, wantType string, t *testing.T) {
+	verifyTextTypeAndCode(got, wantType, t)
 	gotBody := string(got.Body())
 	if gotBody != wantBody {
 		t.Errorf("invalid body. Want: %v, got: %v", wantBody, gotBody)
 	}
 }
 
-func verifyCompressedTextResponse(got *fasthttp.Response, wantBody string, t *testing.T) {
-	verifyTextTypeAndCode(got, t)
+func verifyCompressedTextResponse(got *fasthttp.Response, wantBody, wantType string, t *testing.T) {
+	verifyTextTypeAndCode(got, wantType, t)
 	gotEncoding := string(got.Header.ContentEncoding())
 	wantEncoding := "br"
 	if gotEncoding != wantEncoding {
@@ -399,8 +400,8 @@ func verifyCompressedTextResponse(got *fasthttp.Response, wantBody string, t *te
 	}
 }
 
-func verifyTextTypeAndCode(got *fasthttp.Response, t *testing.T) {
-	verifyTypeAndCode(got, "text/plain; charset=utf-8", http.StatusOK, t)
+func verifyTextTypeAndCode(got *fasthttp.Response, wantType string, t *testing.T) {
+	verifyTypeAndCode(got, wantType+"; charset=utf-8", http.StatusOK, t)
 }
 
 func verifyTypeAndCode(got *fasthttp.Response, wantType string, wantCode int, t *testing.T) {
