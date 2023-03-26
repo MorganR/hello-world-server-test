@@ -132,7 +132,7 @@ func TestHelloCompression(t *testing.T) {
 
 	req := fasthttp.AcquireRequest()
 	req.SetURI(uri)
-	req.Header.Set(fasthttp.HeaderAcceptEncoding, "gzip, br")
+	req.Header.Set(fasthttp.HeaderAcceptEncoding, "unknown, gzip")
 	resp, err := doRequest(req)
 
 	if err != nil {
@@ -185,6 +185,22 @@ func TestLines(t *testing.T) {
 		t)
 }
 
+func TestLinesWithoutParam(t *testing.T) {
+	uri := getBaseUri()
+	uri.SetPath("/strings/lines")
+
+	req := fasthttp.AcquireRequest()
+	req.SetURI(uri)
+	resp, err := doRequest(req)
+
+	if err != nil {
+		t.Fatalf("request failed: %v", err.Error())
+	}
+	verifyUncompressedTextResponse(resp, "<ol>\n</ol>",
+		"text/html",
+		t)
+}
+
 func TestLinesLongResponseIsCompressed(t *testing.T) {
 	uri := getBaseUri()
 	uri.SetPath("/strings/lines")
@@ -193,7 +209,7 @@ func TestLinesLongResponseIsCompressed(t *testing.T) {
 
 	req := fasthttp.AcquireRequest()
 	req.SetURI(uri)
-	req.Header.Set(fasthttp.HeaderAcceptEncoding, "gzip, br")
+	req.Header.Set(fasthttp.HeaderAcceptEncoding, "unknown, gzip")
 	resp, err := doRequest(req)
 
 	if err != nil {
@@ -335,6 +351,29 @@ func TestMathPowerReciprocalsAlt(t *testing.T) {
 		if gotNum < wantLow || gotNum > wantHigh {
 			t.Errorf("Got %.3f, want a number between %.3f and %.3f", gotNum, wantLow, wantHigh)
 		}
+	}
+}
+
+func TestMathPowerReciprocalsAltMissingParam(t *testing.T) {
+	uri := getBaseUri()
+	uri.SetPath("/math/power-reciprocals-alt")
+
+	req := fasthttp.AcquireRequest()
+	req.SetURI(uri)
+	resp, err := doRequest(req)
+
+	if err != nil {
+		t.Fatalf("request failed: %v", err.Error())
+	}
+	verifyTextTypeAndCode(resp, "text/plain", t)
+	gotBody := string(resp.Body())
+	gotNum, err := strconv.ParseFloat(gotBody, 64)
+	if err != nil {
+		t.Errorf("could not parse response to float: %v", gotBody)
+	}
+	wantNum := 0.0
+	if gotNum != 0.0 {
+		t.Errorf("Got %.3f, want %.3f", gotNum, wantNum)
 	}
 }
 
